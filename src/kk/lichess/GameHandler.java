@@ -49,6 +49,29 @@ public class GameHandler implements GameEventHandler {
             }
         }
 
+        try {
+            String body = Unirest.post("https://lichess.org/api/bot/game/" + gameId + "/chat")
+                    .field("room", "player")
+                    .field("text", ":) Cat fact:")
+                    .header("Authorization", authToken)
+                    .asString().getBody();
+            System.out.println(body);
+
+            JsonNode catFact = Unirest.get("https://catfact.ninja/fact?max_length=100")
+                    .accept("application/json")
+                    .asJson()
+                    .getBody();
+
+            Unirest.post("https://lichess.org/api/bot/game/" + gameId + "/chat")
+                    .field("room", "player")
+                    .field("text", catFact.getObject().getString("fact"))
+                    .header("Authorization", authToken)
+                    .asString().getBody();
+        } catch (UnirestException e) {
+            System.out.println("some error: " + e);
+        }
+
+
         handleGameState(gameFull.getGameState());
 
     }
