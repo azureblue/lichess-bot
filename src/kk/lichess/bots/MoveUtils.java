@@ -26,7 +26,7 @@ public class MoveUtils {
             capture = "x";
         Piece piece = board.piece(from.raw());
 
-        return Move.move("" + (piece == Piece.Pawn ? "" : piece.symbol) + from.toString() + capture + to.toString() + promote);
+        return Move.from("" + (piece == Piece.Pawn ? "" : piece.symbol) + from.toString() + capture + to.toString() + promote);
     }
 
 }

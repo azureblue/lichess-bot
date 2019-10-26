@@ -22,16 +22,20 @@ public class GameStreamHandler implements Consumer<String> {
         try {
             JsonNode element = mapper.readTree(json);
             String type = element.get("type").asText();
-            if (type.equals("gameFull")) {
-                GameFull gameFull = mapper.treeToValue(element, GameFull.class);
-                gameEventHandler.handleGameFull(gameFull);
-            } else if (type.equals("gameState")) {
-                System.out.println(element);
-                GameState gameState = mapper.treeToValue(element, GameState.class);
-                gameEventHandler.handleGameState(gameState);
-            } else if (type.equals("chatLine")) {
-                ChatLine chatLine = mapper.treeToValue(element, ChatLine.class);
-                gameEventHandler.handleChatLine(chatLine);
+            switch (type) {
+                case "gameFull":
+                    GameFull gameFull = mapper.treeToValue(element, GameFull.class);
+                    gameEventHandler.handleGameFull(gameFull);
+                    break;
+                case "gameState":
+                    System.out.println(element);
+                    GameState gameState = mapper.treeToValue(element, GameState.class);
+                    gameEventHandler.handleGameState(gameState);
+                    break;
+                case "chatLine":
+                    ChatLine chatLine = mapper.treeToValue(element, ChatLine.class);
+                    gameEventHandler.handleChatLine(chatLine);
+                    break;
             }
         } catch (IOException e) {
             System.out.println("malformed json: " + json);

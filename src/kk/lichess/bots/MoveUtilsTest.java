@@ -11,8 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class MoveUtilsTest {
     @Test
     void test_move_conversion() {
-        assertEquals("a2b3", MoveUtils.lichesMove(Move.move("a2xb3")));
-        assertEquals("c1c2", MoveUtils.lichesMove(Move.move("Rc1xc2")));
+        assertEquals("a2b3", MoveUtils.lichesMove(Move.from("a2xb3")));
+        assertEquals("c1c2", MoveUtils.lichesMove(Move.from("Rc1xc2")));
 
         assertEquals("Rc1xc2",
                 MoveUtils.fromLichess("c1c2",

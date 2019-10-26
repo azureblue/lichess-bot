@@ -5,18 +5,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import kk.lichess.api.Challenge;
 import kk.lichess.api.Side;
-import kk.lichess.bots.LichessRandomPlayer;
+import kk.lichess.bots.ChessBotPlayer;
 import kk.lichess.net.JsonStream;
 import kk.lichess.net.LichessHTTP;
 import kk.lichess.net.LichessStreamGroup;
-import org.junit.jupiter.api.parallel.Resources;
 import spark.Spark;
-import spark.utils.SparkUtils;
 
 import java.io.IOException;
-import java.net.ServerSocket;
+import java.io.PrintStream;
 import java.util.HashSet;
-import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -103,19 +100,18 @@ public class LichessBot {
     }
 
     public static void main(String[] args) throws IOException {
+        System.setOut(new PrintStream(System.out, true, "UTF8"));
         JsonNode config = new ObjectMapper().readTree(LichessBot.class.getResourceAsStream("/lichess-bot.json"));
         String authToken = config.get("authToken").asText();
         Set<String> friends = new HashSet<>();
         config.get("friends").elements().forEachRemaining(node -> friends.add(node.asText()));
-
-        System.out.println(friends);
 
         LichessBot lichessBot = new LichessBot(authToken);
         lichessBot.init();
 
         lichessBot.start(
                 gameRequest -> friends.contains(gameRequest.getRequesterId()) && !gameRequest.isRanking(),
-                () -> new GameHandler(authToken, "blue_bot_one", new LichessRandomPlayer()));
+                () -> new GameHandler(authToken, "blue_bot_one", new ChessBotPlayer()));
 
     }
 }

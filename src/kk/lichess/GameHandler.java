@@ -50,13 +50,6 @@ public class GameHandler implements GameEventHandler {
         }
 
         try {
-            String body = Unirest.post("https://lichess.org/api/bot/game/" + gameId + "/chat")
-                    .field("room", "player")
-                    .field("text", ":) Cat fact:")
-                    .header("Authorization", authToken)
-                    .asString().getBody();
-            System.out.println(body);
-
             JsonNode catFact = Unirest.get("https://catfact.ninja/fact?max_length=100")
                     .accept("application/json")
                     .asJson()
@@ -64,9 +57,10 @@ public class GameHandler implements GameEventHandler {
 
             Unirest.post("https://lichess.org/api/bot/game/" + gameId + "/chat")
                     .field("room", "player")
-                    .field("text", catFact.getObject().getString("fact"))
+                    .field("text", "Cat fact: " + catFact.getObject().getString("fact"))
                     .header("Authorization", authToken)
                     .asString().getBody();
+
         } catch (UnirestException e) {
             System.out.println("some error: " + e);
         }
@@ -91,7 +85,7 @@ public class GameHandler implements GameEventHandler {
         boolean myMove = ((moveArray.length % 2 == 0) == playingWhite);
         if (myMove) {
             System.out.println("my turn");
-            String move = chessPlayer.move(0);
+            String move = chessPlayer.makeMove(0);
             if (move == null)
                 return;
             sendMove(move);
