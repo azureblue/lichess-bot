@@ -7,14 +7,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonPropertyOrder({
-    "type",
-    "moves",
-    "wtime",
-    "btime",
-    "winc",
-    "binc"
-})
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class GameState {
 

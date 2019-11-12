@@ -1,95 +1,101 @@
 package kk.lichess.net;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
+import kk.lichess.Log;
 
-public abstract class LichessStream {
+import java.io.IOException;
+import java.util.function.BiConsumer;
+
+import static java.util.concurrent.CompletableFuture.runAsync;
+
+public class LichessStream {
+
+    private final InputStreamSupplier stream;
+    private final BiConsumer<LichessStream, StreamResult> whenComplete;
+    private final JsonHandler handler;
+    private JsonStreamReader jsonStreamReader;
+    private Thread streamThread;
+    private volatile boolean stopped = false;
+    private volatile boolean ended = false;
+
+    public LichessStream(InputStreamSupplier stream, BiConsumer<LichessStream, StreamResult> whenComplete, JsonHandler handler) {
+        this.stream = stream;
+        this.whenComplete = whenComplete;
+        this.handler = handler;
+    }
+
+    public boolean isEnded() {
+        return ended;
+    }
+
+
+    public void sync() throws InterruptedException {
+        streamThread.join();
+    }
+
+    public synchronized void start() throws IOException {
+        Log.d(this.getClass().getSimpleName(), "start()");
+        jsonStreamReader = new JsonStreamReader(stream.openStream());
+        streamThread = new Thread(() -> {
+            try {
+                while (true) {
+                    String json = jsonStreamReader.readJson();
+                    if (json == null) {
+                        Log.v("stream closed by remote host");
+                        whenComplete.accept(this, new StreamResult(StreamResultStatus.EndOfStream, null));
+                        return;
+                    }
+
+                    runAsync(() -> handler.handleJson(json));
+                }
+            } catch (Exception e) {
+                if (stopped)
+                    whenComplete.accept(this, new StreamResult(StreamResultStatus.Stopped, null));
+                whenComplete.accept(this, new StreamResult(StreamResultStatus.Error, e));
+            } finally {
+                ended = true;
+            }
+        });
+
+        streamThread.start();
+    }
+
+    public void stop() {
+        Log.d(this.getClass().getSimpleName(), "stop()");
+        stopped = true;
+        try {
+            jsonStreamReader.close();
+        } catch (IOException e) {
+            //what can you do...
+            Log.w("stream close error: " + e.toString());
+        }
+    }
+
+    public enum StreamResultStatus {
+        EndOfStream, Stopped, Error
+    }
 
 
     @FunctionalInterface
-    public interface InputStreamSupplier {
-        InputStream open() throws IOException;
+    public interface JsonHandler {
+        void handleJson(String json);
     }
 
-    private final InputStreamSupplier inputStreamSupplier;
+    public class StreamResult {
+        private final StreamResultStatus resultStatus;
+        private final Throwable throwable;
 
-    private Thread streamThread = null;
-    private boolean isStarted = false;
-    private volatile boolean stop = false;
-
-    private BufferedReader reader;
-
-    public LichessStream(InputStreamSupplier inputStreamSupplier) {
-        this.inputStreamSupplier = inputStreamSupplier;
-    }
-
-    protected abstract void nextChar(char ch);
-
-    public synchronized void start(boolean startInNewThread, LichessStreamGroup lichessStreamGroup) throws IOException {
-        if (isStarted)
-            throw new IllegalStateException("already started!");
-
-        lichessStreamGroup.addStream(this);
-
-        stop = false;
-        reader = new BufferedReader(new InputStreamReader(inputStreamSupplier.open(), StandardCharsets.UTF_8));
-
-
-        Runnable runnable = () -> {
-            try {
-                while (true) {
-                    try {
-                        if (stop)
-                            break;
-                        int read = reader.read();
-                        if (read == -1)
-                            break;
-                        nextChar(((char) read));
-
-                    } catch (IOException e) {
-                        System.out.println("JsonStream error: " + e);
-                        try {
-                            this.reader.close();
-                        } catch (IOException e1) {
-                            // what can you do
-                        }
-                        break;
-                    }
-                }
-            } finally {
-                System.out.println("stream terminated");
-                isStarted = false;
-                lichessStreamGroup.removeStream(this);
-            }
-
-        };
-
-        if (startInNewThread) {
-            streamThread = new Thread(runnable);
-            streamThread.setName(streamThread.getName() + "-lichess-stream");
-            streamThread.start();
-        } else {
-            runnable.run();
+        public StreamResult(StreamResultStatus resultStatus, Throwable throwable) {
+            this.resultStatus = resultStatus;
+            this.throwable = throwable;
         }
 
-    }
-
-    public synchronized void stop() {
-        stop = true;
-        try {
-            reader.close();
-        } catch (IOException e) {
-            // ignore
+        public StreamResultStatus getResultStatus() {
+            return resultStatus;
         }
-//
-//        if (joinThread) {
-//            if (streamThread == null)
-//                throw new IllegalStateException("thread is null");
-//            streamThread.join();
-//        }
+
+        public Throwable getThrowable() {
+            return throwable;
+        }
     }
 
 }

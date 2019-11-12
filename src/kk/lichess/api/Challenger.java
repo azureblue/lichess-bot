@@ -4,14 +4,6 @@ package kk.lichess.api;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
-@JsonPropertyOrder({
-    "id",
-    "name",
-    "title",
-    "rating",
-    "online",
-    "lag"
-})
 public class Challenger {
 
     @JsonProperty("id")

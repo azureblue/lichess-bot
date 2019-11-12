@@ -6,13 +6,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonPropertyOrder({
-    "id",
-    "name",
-    "provisional",
-    "rating",
-    "title"
-})
 public class Player {
 
     @JsonProperty("id")

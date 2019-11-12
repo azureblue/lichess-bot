@@ -1,8 +1,10 @@
 
 package kk.lichess.api;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Challenge {
 
     @JsonProperty("id")
@@ -25,6 +27,7 @@ public class Challenge {
     private String color;
     @JsonProperty("perf")
     private Perf perf;
+
 
     public String getId() {
         return id;
@@ -64,9 +67,5 @@ public class Challenge {
 
     public Perf getPerf() {
         return perf;
-    }
-
-    public Boolean getRated() {
-        return rated;
     }
 }

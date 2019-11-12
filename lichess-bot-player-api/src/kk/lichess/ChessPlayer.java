@@ -1,7 +1,7 @@
 package kk.lichess;
 
 public interface ChessPlayer {
-    void gameStarts(boolean playerIsWhite, int remainingTime);
+    void gameStarts(String initialFen, boolean playerIsWhite, int remainingTime);
 
     String makeMove(int remainingTime);
 

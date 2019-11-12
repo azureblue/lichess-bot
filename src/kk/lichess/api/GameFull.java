@@ -6,28 +6,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonPropertyOrder({
-    "type",
-    "id",
-    "rated",
-    "variant",
-    "clock",
-    "speed",
-    "perf",
-    "createdAt",
-    "white",
-    "black",
-    "initialFen",
-    "gameState",
-    "moves",
-    "wtime",
-    "btime",
-    "winc",
-    "binc",
-    "username",
-    "text",
-    "room"
-})
 public class GameFull {
 
     @JsonProperty("type")
