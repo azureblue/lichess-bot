@@ -1,6 +1,6 @@
 package kk.lichess.game;
 
-import kk.lichess.ChessPlayer;
+import kk.lichess.bots.api.ChessPlayer;
 import kk.lichess.Log;
 import kk.lichess.Side;
 

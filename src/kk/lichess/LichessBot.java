@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import kk.lichess.api.Challenge;
 import kk.lichess.api.Side;
+import kk.lichess.bots.api.ChessPlayer;
 import kk.lichess.net.LichessGames;
 import kk.lichess.net.LichessHTTP;
 import kk.lichess.net.LichessHTTPException;

@@ -1,6 +1,6 @@
 package kk.lichess.bots;
 
-import kk.lichess.ChessPlayer;
+import kk.lichess.bots.api.ChessPlayer;
 import kk.lichess.Log;
 
 public class ChessBotVerbosePlayer implements ChessPlayer {

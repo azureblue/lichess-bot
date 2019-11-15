@@ -5,6 +5,7 @@ import kk.lichess.api.ChatLine;
 import kk.lichess.api.GameFull;
 import kk.lichess.api.GameState;
 import kk.lichess.bots.ChessBotVerbosePlayer;
+import kk.lichess.bots.api.ChessPlayer;
 import kk.lichess.game.GameChatInterface;
 import kk.lichess.game.GameHandler;
 import kk.lichess.game.GameMoveInterface;
