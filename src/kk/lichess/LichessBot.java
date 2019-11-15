@@ -51,6 +51,7 @@ public class LichessBot {
         };
 
         System.setOut(new PrintStream(System.out, true, "UTF-8"));
+
         JsonNode config = new ObjectMapper().readTree(LichessBot.class.getResourceAsStream("/lichess-bot.json"));
         Set<String> friends = new HashSet<>();
         config.get("friends").elements().forEachRemaining(node -> friends.add(node.asText()));
