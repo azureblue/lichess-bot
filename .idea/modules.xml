@@ -3,7 +3,6 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/lichess-bot.iml" filepath="$PROJECT_DIR$/lichess-bot.iml" />
-      <module fileurl="file://$PROJECT_DIR$/lichess-bot-player-api/lichess-bot-player-api.iml" filepath="$PROJECT_DIR$/lichess-bot-player-api/lichess-bot-player-api.iml" />
     </modules>
   </component>
 </project>
