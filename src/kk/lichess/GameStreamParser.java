@@ -2,9 +2,9 @@ package kk.lichess;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import kk.lichess.api.ChatLine;
-import kk.lichess.api.GameFull;
-import kk.lichess.api.GameState;
+import kk.lichess.net.pojo.ChatLine;
+import kk.lichess.net.pojo.GameFull;
+import kk.lichess.net.pojo.GameState;
 import kk.lichess.net.LichessStream;
 
 import java.io.IOException;

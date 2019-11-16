@@ -3,11 +3,16 @@ package kk.lichess.net;
 import kk.lichess.Log;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.function.BiConsumer;
 
 import static java.util.concurrent.CompletableFuture.runAsync;
 
 public class LichessStream {
+
+    public interface InputStreamSupplier {
+        InputStream openStream() throws IOException;
+    }
 
     private final InputStreamSupplier stream;
     private final BiConsumer<LichessStream, StreamResult> whenComplete;
@@ -17,7 +22,7 @@ public class LichessStream {
     private volatile boolean stopped = false;
     private volatile boolean ended = false;
 
-    public LichessStream(InputStreamSupplier stream, BiConsumer<LichessStream, StreamResult> whenComplete, JsonHandler handler) {
+    LichessStream(InputStreamSupplier stream, BiConsumer<LichessStream, StreamResult> whenComplete, JsonHandler handler) {
         this.stream = stream;
         this.whenComplete = whenComplete;
         this.handler = handler;
@@ -26,7 +31,6 @@ public class LichessStream {
     public boolean isEnded() {
         return ended;
     }
-
 
     public void sync() throws InterruptedException {
         streamThread.join();
@@ -84,7 +88,7 @@ public class LichessStream {
         private final StreamResultStatus resultStatus;
         private final Throwable throwable;
 
-        public StreamResult(StreamResultStatus resultStatus, Throwable throwable) {
+        StreamResult(StreamResultStatus resultStatus, Throwable throwable) {
             this.resultStatus = resultStatus;
             this.throwable = throwable;
         }

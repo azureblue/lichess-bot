@@ -1,149 +1,121 @@
 package kk.lichess;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import kk.lichess.api.Challenge;
-import kk.lichess.api.Side;
 import kk.lichess.bots.api.ChessPlayer;
-import kk.lichess.net.LichessGames;
 import kk.lichess.net.LichessHTTP;
 import kk.lichess.net.LichessHTTPException;
-import spark.Spark;
+import kk.lichess.net.LichessStream;
+import kk.lichess.net.pojo.Challenge;
 
 import java.io.IOException;
-import java.io.PrintStream;
-import java.lang.reflect.Constructor;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import static java.util.Arrays.asList;
-
 public class LichessBot {
 
-
-    private static final String PLAYER_ID = "blue_bot_one";
+    private final String botId;
+    private final Supplier<ChessPlayer> chessPlayerSupplier;
+    private final Predicate<GameRequest> acceptGamePredicate;
+    private final LichessHTTP lichessHTTP;
     private LichessGames lichessGames;
 
-    public static void main(String[] args) throws Exception {
-
-        String chessPlayerClassName = args[0];
-
-        if (chessPlayerClassName == null)
-            throw new IllegalArgumentException("missing player class name");
-
-        Class<?> playerClass = ClassLoader.getSystemClassLoader().loadClass(chessPlayerClassName);
-        if (!new HashSet<>(asList(playerClass.getInterfaces())).contains((ChessPlayer.class)))
-            throw new IllegalArgumentException("class " + chessPlayerClassName + " is not an instance of ChessPlayer");
-
-        Constructor<?> constructor = playerClass.getDeclaredConstructor();
-
-        constructor.newInstance();
-
-        Supplier<ChessPlayer> chessPlayerSupplier = () -> {
-            try {
-                return (ChessPlayer) constructor.newInstance();
-            } catch (Exception e) {
-                throw new IllegalStateException(e);
-            }
-        };
-
-        System.setOut(new PrintStream(System.out, true, "UTF-8"));
-
-        JsonNode config = new ObjectMapper().readTree(LichessBot.class.getResourceAsStream("/lichess-bot.json"));
-        Set<String> friends = new HashSet<>();
-        config.get("friends").elements().forEachRemaining(node -> friends.add(node.asText()));
-
-        LichessBot lichessBot = new LichessBot();
-        lichessBot.init();
-
-
-        Predicate<GameRequest> gameRequestAccept = gameRequest
-                -> friends.contains(gameRequest.getRequesterId())
-                || gameRequest.getTime() <= 10 * 60;
-
-        lichessBot.start(gameRequestAccept, chessPlayerSupplier);
+    public LichessBot(String botId, String authToken, Supplier<ChessPlayer> chessPlayerSupplier, Predicate<GameRequest> acceptGamePredicate) {
+        this.botId = botId;
+        this.chessPlayerSupplier = chessPlayerSupplier;
+        this.acceptGamePredicate = acceptGamePredicate;
+        this.lichessHTTP = new LichessHTTP(authToken);
     }
 
     private void init() {
-        try {
-            JsonNode user = LichessHTTP.get("https://lichess.org/api/account").toJson();
-            if (user.has("error")) {
-                throw new IllegalStateException("error: " + user.get("error"));
-            }
+        JsonNode user = lichessHTTP.get("https://lichess.org/api/account").toJson();
+        if (user.has("error"))
+            throw new IllegalStateException("error: " + user.get("error"));
 
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("error: " + e);
-        }
     }
 
     private GameRequest gameRequestFromChallenge(Challenge challenge) {
+        GameRequest.Side side;
+        if (challenge.getColor().equals("white"))
+            side = GameRequest.Side.White;
+        else if (challenge.getColor().equals("black"))
+            side = GameRequest.Side.Black;
+        else if (challenge.getColor().equals("random"))
+            side = GameRequest.Side.Random;
+        else
+            throw new IllegalArgumentException("invalid side: " + challenge.getColor());
+
+
         return new GameRequest(
                 challenge.getChallenger().getId(),
                 challenge.getChallenger().getRating(),
                 challenge.getTimeControl().getLimit(),
                 challenge.getTimeControl().getIncrement(),
-                Side.fromChar(challenge.getColor().charAt(0)),
+                side,
                 challenge.isRated()
         );
     }
 
-    public void start(Predicate<GameRequest> acceptGamePredicate, Supplier<ChessPlayer> chessPlayerSupplier) throws InterruptedException {
-        lichessGames = new LichessGames(PLAYER_ID, chessPlayerSupplier);
+    public void start() {
+        new Thread(() -> {
+            init();
 
-        Consumer<Challenge> challengeHandler = challenge -> {
-            GameRequest gameRequest = gameRequestFromChallenge(challenge);
+            lichessGames = new LichessGames(lichessHTTP, botId, this.chessPlayerSupplier);
 
-            boolean challengeAccepted = acceptGamePredicate.and(ignore -> lichessGames.size() < 4).test(gameRequest)
-                    && (challenge.getVariant().getKey().equals("standard") || challenge.getVariant().getShortName().equals("FEN"));
+            Consumer<Challenge> challengeHandler = challenge -> {
+                GameRequest gameRequest = gameRequestFromChallenge(challenge);
 
-            String challengeAcceptString = challengeAccepted ? "accept" : "decline";
-            String challengeAcceptResult = LichessHTTP.post("https://lichess.org/api/challenge/"
-                    + challenge.getId() + "/"
-                    + challengeAcceptString).getContent();
+                boolean challengeAccepted = this.acceptGamePredicate.and(ignore -> lichessGames.size() < 4).test(gameRequest)
+                        && (challenge.getVariant().getKey().equals("standard") || challenge.getVariant().getShortName().equals("FEN"));
 
-            Log.d("challenge from " + challenge.getChallenger().getId() + ": " + challengeAcceptString);
+                String challengeAcceptString = challengeAccepted ? "accept" : "decline";
+                LichessHTTP.LichessResponse response = lichessHTTP.post("https://lichess.org/api/challenge/"
+                        + challenge.getId() + "/"
+                        + challengeAcceptString);
 
-            if (challengeAcceptResult.contains("error")) {
-                Log.e("lichess error: error while answering challenge: " + challengeAcceptResult);
-            }
-        };
+                Log.d("challenge from " + challenge.getChallenger().getId() + ": " + challengeAcceptString);
 
-        Consumer<String> gameStartHandler = game -> {
-            Log.i("starting game: " + game);
-            lichessGames.startGame(game);
+                if (response.getStatusCode() != 200) {
+                    Log.e("lichess error: error while answering challenge: " + response.getContent());
+                }
+            };
 
-        };
+            Consumer<String> gameStartHandler = game -> {
+                Log.i("starting game: " + game);
+                lichessGames.startGame(game);
 
-        Spark.port(4567);
+            };
 
-        Spark.get("lichess-bot/pid", (req, res) -> "" + ProcessHandle.current().pid());
-        Spark.get("lichess-bot/games", (req, res) -> lichessGames.size());
-        Spark.get("lichess-bot/stop/", (req, res) -> {
-            lichessGames.stopAll();
-            return "\"ok\"";
-        });
-
-        Spark.get("lichess-bot/kill", (req, res) -> {
-            System.exit(0);
-            return "";
-        });
-
-        while (true) {
             try {
-                Log.i("opening event stream");
-                EventStream eventStream = new EventStream(LichessHTTP.stream(
-                        "https://lichess.org/api/stream/event"), challengeHandler, gameStartHandler);
-
-                eventStream.start();
-                eventStream.sync();
-            } catch (IOException | LichessHTTPException e) {
-                Log.e("event stream error", e);
+                while (true) {
+                    LichessStream eventStream = lichessHTTP.eventStream(
+                            (stre, result) -> Log.i("event stream ended: " + result.getResultStatus()),
+                            challengeHandler, gameStartHandler);
+                    try {
+                        Log.i("opening event stream");
+                        eventStream.start();
+                        eventStream.sync();
+                    } catch (IOException | LichessHTTPException e) {
+                        Log.e("event stream error", e);
+                    } catch (InterruptedException e) {
+                        Log.d("lichess event thread interrupted");
+                        eventStream.stop();
+                        break;
+                    }
+                    Thread.sleep(2000);
+                }
+            } catch (InterruptedException e) {
+                Log.d("lichess thread interrupted");
             }
-            Thread.sleep(2000);
-        }
+
+        }).start();
+    }
+
+    public void stopAll() {
+        lichessGames.stopAll();
+    }
+
+    public int getNumberOfGamesInProgress() {
+        return lichessGames.size();
     }
 }

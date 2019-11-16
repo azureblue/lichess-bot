@@ -1,24 +1,25 @@
 
-package kk.lichess.api;
+package kk.lichess.net.pojo;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
-public class DestUser {
+public class Challenger {
 
     @JsonProperty("id")
     private String id;
     @JsonProperty("name")
     private String name;
     @JsonProperty("title")
-    private String title;
+    private Object title;
     @JsonProperty("rating")
-    private int rating;
-    @JsonProperty("provisional")
-    private boolean provisional;
+    private Integer rating;
     @JsonProperty("online")
     private boolean online;
+    @JsonProperty("provisional")
+    private boolean provisional;
+    @JsonProperty("lag")
+    private Integer lag;
+
 
     public String getId() {
         return id;
@@ -28,19 +29,27 @@ public class DestUser {
         return name;
     }
 
-    public String getTitle() {
+    public Object getTitle() {
         return title;
     }
 
-    public int getRating() {
+    public Integer getRating() {
         return rating;
     }
 
-    public boolean isProvisional() {
-        return provisional;
+    public Boolean getOnline() {
+        return online;
+    }
+
+    public Integer getLag() {
+        return lag;
     }
 
     public boolean isOnline() {
         return online;
+    }
+
+    public boolean isProvisional() {
+        return provisional;
     }
 }

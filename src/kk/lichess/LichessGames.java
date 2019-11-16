@@ -1,36 +1,40 @@
-package kk.lichess.net;
+package kk.lichess;
 
-import kk.lichess.*;
-import kk.lichess.api.ChatLine;
-import kk.lichess.api.GameFull;
-import kk.lichess.api.GameState;
 import kk.lichess.bots.ChessBotVerbosePlayer;
 import kk.lichess.bots.api.ChessPlayer;
 import kk.lichess.game.GameChatInterface;
 import kk.lichess.game.GameHandler;
 import kk.lichess.game.GameMoveInterface;
 import kk.lichess.game.Player;
+import kk.lichess.net.LichessHTTP;
+import kk.lichess.net.LichessHTTPException;
+import kk.lichess.net.LichessStream;
+import kk.lichess.net.pojo.ChatLine;
+import kk.lichess.net.pojo.GameFull;
+import kk.lichess.net.pojo.GameState;
 import kk.lichess.net.service.CatFact;
-import kk.lichess.net.service.LichessGameStatus;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import static java.util.Optional.ofNullable;
 import static java.util.concurrent.CompletableFuture.runAsync;
 import static java.util.concurrent.CompletableFuture.supplyAsync;
-import static kk.lichess.net.LichessHTTP.postMove;
 
 public class LichessGames {
     private final String playerId;
-    private final LichessGameStatus lichessGameStatus = new LichessGameStatus();
+    private final LichessHTTP lichessHTTP;
 
     private final Supplier<ChessPlayer> chessPlayerSupplier;
     private final Map<String, StreamWrapper> streams = new HashMap<>();
     private volatile boolean restartOnError = true;
 
-    public LichessGames(String playerId, Supplier<ChessPlayer> chessPlayerSupplier) {
+    public LichessGames(LichessHTTP lichessHTTP, String playerId, Supplier<ChessPlayer> chessPlayerSupplier) {
+        this.lichessHTTP = lichessHTTP;
         this.playerId = playerId;
         this.chessPlayerSupplier = chessPlayerSupplier;
     }
@@ -69,8 +73,9 @@ public class LichessGames {
     public void startGame(String gameId) {
         runAsync(() -> {
             try {
-                GameHandler gameHandler = new Player(new ChessBotVerbosePlayer(chessPlayerSupplier.get(), gameId), gameId);
-                start(gameId, gameHandler);
+                Supplier<GameHandler> gameHandlerSupplier =
+                        () -> new Player(new ChessBotVerbosePlayer(chessPlayerSupplier.get(), gameId), gameId);
+                start(gameId, gameHandlerSupplier);
             } catch (IOException e) {
                 Log.e("unable to start game: ", e);
             }
@@ -95,21 +100,21 @@ public class LichessGames {
         });
     }
 
-    private synchronized void start(String gameId, GameHandler gameHandler) throws IOException {
+    private synchronized void start(String gameId, Supplier<GameHandler> gameHandler) throws IOException {
         Log.d(this.getClass().getSimpleName(), "start()");
         if (streams.containsKey(gameId)) {
             Log.e("stream " + gameId + "already exists!");
             throw new IllegalStateException("stream " + gameId + "already exists!");
         }
-        LichessStream gameStream = new LichessStream(LichessHTTP.gameStream(gameId),
+        LichessStream gameStream = lichessHTTP.gameStream(
                 (stream, result) -> handleStreamFinish(gameId, stream, result),
-                createHandler(gameId, gameHandler));
+                gameId, createHandler(gameId, gameHandler.get()));
         streams.put(gameId, new StreamWrapper(gameStream));
         gameStream.start();
     }
 
-    private LichessStream.JsonHandler createHandler(String gameId, GameHandler gameHandler) {
-        return new GameStreamParser(new GameEventHandler() {
+    private GameEventHandler createHandler(String gameId, GameHandler gameHandler) {
+        return new GameEventHandler() {
             CatFact catFact = new CatFact();
             Side mySide = null;
             GameMoveInterface moveInterface = createMoveInterface(gameId);
@@ -162,6 +167,7 @@ public class LichessGames {
                 else if (gameFull.getBlack().getId().equals(playerId))
                     return gameFull.getWhite().getId();
 
+                Log.e("bot player id doesn't match");
                 throw new IllegalStateException("bot player id doesn't match");
             }
 
@@ -171,9 +177,10 @@ public class LichessGames {
                 else if (gameFull.getBlack().getId().equals(playerId))
                     return Side.Black;
 
+                Log.e("bot player id doesn't match");
                 throw new IllegalStateException("bot player id doesn't match");
             }
-        });
+        };
     }
 
     private synchronized StreamWrapper removeStream(String gameId) {
@@ -200,19 +207,19 @@ public class LichessGames {
     private void startIfStillInProgress(String gameId) {
         runAsync(() -> {
             Log.d(this.getClass().getName(), "startIfStillInProgress(" + gameId + ")");
-            Optional<Set<String>> gamesInProgress = lichessGameStatus.gamesInProgress();
-            if (!gamesInProgress.isPresent()) {
-                Log.e("error getting game in progress");
-                throw new IllegalStateException("error getting game in progress");
-            }
-            if (gamesInProgress.get().contains(gameId)) {
-                synchronized (LichessGames.this) {
-                    if (!streams.containsKey(gameId)) {
-                        startGame(gameId);
+            try {
+                Set<String> gamesInProgress = lichessHTTP.gamesInProgress();
+
+                if (gamesInProgress.contains(gameId)) {
+                    synchronized (LichessGames.this) {
+                        if (!streams.containsKey(gameId))
+                            startGame(gameId);
                     }
-                }
-            } else {
-                Log.i("game " + gameId + " is not in progress");
+                } else
+                    Log.i("game " + gameId + " is not in progress");
+            } catch (LichessHTTPException e) {
+                Log.e("error getting game in progress", e);
+                throw new IllegalStateException("error getting game in progress");
             }
         });
     }
@@ -220,25 +227,25 @@ public class LichessGames {
     private void startAllGamesInProgress() {
         runAsync(() -> {
             Log.d(this.getClass().getName(), "startAllGamesInProgress()");
-            Optional<Set<String>> gamesInProgress = lichessGameStatus.gamesInProgress();
-            if (!gamesInProgress.isPresent()) {
-                Log.e("error getting game in progress");
+            try {
+                Set<String> gamesInProgress = lichessHTTP.gamesInProgress();
+                synchronized (LichessGames.this) {
+                    gamesInProgress.forEach(gameId -> {
+                        if (!streams.containsKey(gameId)) {
+                            startGame(gameId);
+                        }
+                    });
+                }
+            } catch (LichessHTTPException e) {
+                Log.e("error getting game in progress", e);
                 throw new IllegalStateException("error getting game in progress");
-            }
-
-            synchronized (LichessGames.this) {
-                gamesInProgress.get().forEach(gameId -> {
-                    if (!streams.containsKey(gameId)) {
-                        startGame(gameId);
-                    }
-                });
             }
         });
     }
 
     private GameChatInterface createGameChatInterface(String gameId) {
         return message -> supplyAsync(
-                () -> LichessHTTP.postChatMessage(gameId, LichessHTTP.Room.Player, message)).whenComplete(
+                () -> lichessHTTP.postChatMessage(gameId, LichessHTTP.Room.Player, message)).whenComplete(
                 (lichessResponse, throwable) -> {
                     if (throwable != null) {
                         Log.e("post chat: ", throwable);
@@ -250,7 +257,7 @@ public class LichessGames {
     }
 
     private GameMoveInterface createMoveInterface(String gameId) {
-        return (move, acceptDraw) -> supplyAsync(() -> postMove(gameId, move, acceptDraw)).whenComplete(
+        return (move, acceptDraw) -> supplyAsync(() -> lichessHTTP.postMove(gameId, move, acceptDraw)).whenComplete(
                 (response, ex) -> {
                     if (ex != null) {
                         Log.e("game " + gameId + ": " + "post move error: ", ex);
@@ -268,11 +275,11 @@ public class LichessGames {
         private final LichessStream stream;
         private boolean restart = false;
 
-        public StreamWrapper(LichessStream stream) {
+        StreamWrapper(LichessStream stream) {
             this.stream = stream;
         }
 
-        public void scheduleForRestart() {
+        void scheduleForRestart() {
             restart = true;
         }
     }

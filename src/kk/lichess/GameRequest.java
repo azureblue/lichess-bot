@@ -1,8 +1,11 @@
 package kk.lichess;
 
-import kk.lichess.api.Side;
-
 public class GameRequest {
+
+    public enum Side {
+        White, Black, Random;
+    }
+
     private final String requesterId;
     private final int requesterRating;
 

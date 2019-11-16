@@ -2,7 +2,7 @@ package kk.lichess;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import kk.lichess.api.Challenge;
+import kk.lichess.net.pojo.Challenge;
 import kk.lichess.net.LichessStream.JsonHandler;
 
 import java.io.IOException;

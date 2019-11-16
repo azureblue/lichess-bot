@@ -1,5 +1,5 @@
 
-package kk.lichess.api;
+package kk.lichess.net.pojo;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

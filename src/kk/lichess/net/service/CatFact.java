@@ -1,7 +1,7 @@
 package kk.lichess.net.service;
 
 import kk.lichess.Log;
-import kk.lichess.net.LichessHTTP;
+import kong.unirest.Unirest;
 
 import java.util.Optional;
 
@@ -9,11 +9,10 @@ public class CatFact {
 
     public Optional<String> catFact() {
         try {
-            String catFact = LichessHTTP
+            String catFact = Unirest
                     .get("https://catfact.ninja/fact?max_length=100")
-                    .toJson()
-                    .get("fact")
-                    .asText();
+                    .asJson().getBody().getObject().getString("fact");
+
 
             return Optional.ofNullable(catFact);
         } catch (Exception e) {
