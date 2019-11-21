@@ -2,10 +2,10 @@ package kk.lichess;
 
 import kk.lichess.bots.ChessBotVerbosePlayer;
 import kk.lichess.bots.api.ChessPlayer;
+import kk.lichess.game.ChessPlayerGameHandler;
 import kk.lichess.game.GameChatInterface;
 import kk.lichess.game.GameHandler;
 import kk.lichess.game.GameMoveInterface;
-import kk.lichess.game.Player;
 import kk.lichess.net.LichessHTTP;
 import kk.lichess.net.LichessHTTPException;
 import kk.lichess.net.LichessStream;
@@ -74,7 +74,7 @@ public class LichessGames {
         runAsync(() -> {
             try {
                 Supplier<GameHandler> gameHandlerSupplier =
-                        () -> new Player(new ChessBotVerbosePlayer(chessPlayerSupplier.get(), gameId), gameId);
+                        () -> new ChessPlayerGameHandler(new ChessBotVerbosePlayer(chessPlayerSupplier.get(), gameId), gameId);
                 start(gameId, gameHandlerSupplier);
             } catch (IOException e) {
                 Log.e("unable to start game: ", e);
@@ -84,6 +84,7 @@ public class LichessGames {
 
     private void handleStreamFinish(String gameId, LichessStream stream, LichessStream.StreamResult result) {
         StreamWrapper streamWrapper = removeStream(gameId);
+
         runAsync(() -> {
             if (result.getResultStatus() == LichessStream.StreamResultStatus.Error) {
                 Throwable throwable = result.getThrowable();
@@ -120,7 +121,7 @@ public class LichessGames {
             GameMoveInterface moveInterface = createMoveInterface(gameId);
 
             @Override
-            public void handleGameFull(GameFull gameFull) {
+            public synchronized void handleGameFull(GameFull gameFull) {
                 gameHandler.handleGameStart(
                         gameFull.getInitialFen(),
                         mySide = getMySide(gameFull),
@@ -135,12 +136,12 @@ public class LichessGames {
             }
 
             @Override
-            public void handleGameState(GameState gameState) {
+            public synchronized void handleGameState(GameState gameState) {
                 gameHandler.handleGameState(movesFromGameState(gameState), moveInterface);
             }
 
             @Override
-            public void handleChatLine(ChatLine chatLine) {
+            public synchronized void handleChatLine(ChatLine chatLine) {
                 if (chatLine.getUsername().equals("lichess")
                         && chatLine.getText().toLowerCase().equals("" + (mySide.isWhite() ? "black" : "white") + " offers draw")) {
                     gameHandler.handleDrawOffer();
@@ -236,7 +237,7 @@ public class LichessGames {
                         }
                     });
                 }
-            } catch (LichessHTTPException e) {
+            } catch (Exception e) {
                 Log.e("error getting game in progress", e);
                 throw new IllegalStateException("error getting game in progress");
             }

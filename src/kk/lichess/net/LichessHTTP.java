@@ -85,6 +85,7 @@ public class LichessHTTP {
     public LichessResponse post(String path) throws LichessHTTPException {
         try {
             HttpRequestWithBody postRequest = Unirest.post(path)
+                    .socketTimeout(5000)
                     .header("Authorization", authToken);
 
             HttpResponse<String> response = postRequest.asString();

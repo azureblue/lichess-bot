@@ -8,6 +8,7 @@ import kk.lichess.net.LichessStream;
 import kk.lichess.net.pojo.Challenge;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -19,6 +20,7 @@ public class LichessBot {
     private final Predicate<GameRequest> acceptGamePredicate;
     private final LichessHTTP lichessHTTP;
     private LichessGames lichessGames;
+    private LichessStream eventStream;
 
     public LichessBot(String botId, String authToken, Supplier<ChessPlayer> chessPlayerSupplier, Predicate<GameRequest> acceptGamePredicate) {
         this.botId = botId;
@@ -49,8 +51,8 @@ public class LichessBot {
         return new GameRequest(
                 challenge.getChallenger().getId(),
                 challenge.getChallenger().getRating(),
-                challenge.getTimeControl().getLimit(),
-                challenge.getTimeControl().getIncrement(),
+                Optional.ofNullable(challenge.getTimeControl().getLimit()).orElse(Integer.MAX_VALUE),
+                Optional.ofNullable(challenge.getTimeControl().getIncrement()).orElse(0),
                 side,
                 challenge.isRated()
         );
@@ -63,21 +65,26 @@ public class LichessBot {
             lichessGames = new LichessGames(lichessHTTP, botId, this.chessPlayerSupplier);
 
             Consumer<Challenge> challengeHandler = challenge -> {
+                Log.v("handling challenge: " + challenge.getId());
                 GameRequest gameRequest = gameRequestFromChallenge(challenge);
 
                 boolean challengeAccepted = this.acceptGamePredicate.and(ignore -> lichessGames.size() < 4).test(gameRequest)
                         && (challenge.getVariant().getKey().equals("standard") || challenge.getVariant().getShortName().equals("FEN"));
 
                 String challengeAcceptString = challengeAccepted ? "accept" : "decline";
+                Log.d("challenge from " + challenge.getChallenger().getId() + ": sending " + challengeAcceptString);
+
                 LichessHTTP.LichessResponse response = lichessHTTP.post("https://lichess.org/api/challenge/"
                         + challenge.getId() + "/"
                         + challengeAcceptString);
 
-                Log.d("challenge from " + challenge.getChallenger().getId() + ": " + challengeAcceptString);
 
                 if (response.getStatusCode() != 200) {
                     Log.e("lichess error: error while answering challenge: " + response.getContent());
                 }
+
+                Log.d("challenge from " + challenge.getChallenger().getId() + ": sent " + challengeAcceptString);
+
             };
 
             Consumer<String> gameStartHandler = game -> {
@@ -88,7 +95,7 @@ public class LichessBot {
 
             try {
                 while (true) {
-                    LichessStream eventStream = lichessHTTP.eventStream(
+                    eventStream = lichessHTTP.eventStream(
                             (stre, result) -> Log.i("event stream ended: " + result.getResultStatus()),
                             challengeHandler, gameStartHandler);
                     try {

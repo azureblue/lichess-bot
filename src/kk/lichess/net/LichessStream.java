@@ -44,12 +44,18 @@ public class LichessStream {
                 while (true) {
                     String json = jsonStreamReader.readJson();
                     if (json == null) {
-                        Log.v("stream closed by remote host");
+                        Log.i("stream closed by remote host");
                         whenComplete.accept(this, new StreamResult(StreamResultStatus.EndOfStream, null));
                         return;
                     }
 
-                    runAsync(() -> handler.handleJson(json));
+                    Log.vv("incoming json: " + json);
+
+                    runAsync(() -> handler.handleJson(json))
+                            .exceptionally(throwable -> {
+                                Log.e("json handler error: " + json, throwable);
+                                return null;
+                            });
                 }
             } catch (Exception e) {
                 if (stopped)

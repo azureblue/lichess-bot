@@ -38,8 +38,8 @@ public class EventHandler implements JsonHandler {
             else {
                 throw new IllegalStateException("unsupported event: " + type);
             }
-        } catch (IOException e) {
-            Log.e(e.getMessage() + ": " + json);
+        } catch (Exception e) {
+            Log.e("EventHandler exception", e);
         }
     }
 }

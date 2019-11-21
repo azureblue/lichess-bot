@@ -14,7 +14,8 @@ public class Log {
             Type.Warning,
             Type.Info,
             Type.Debug
-//            Type.Verbose
+//            Type.Verbose,
+//            Type.VeryVerbose
     );
     private static final PrintStream[] streams;
 
@@ -24,6 +25,7 @@ public class Log {
         put(Type.Info, System.out);
         put(Type.Debug, System.out);
         put(Type.Verbose, System.out);
+        put(Type.VeryVerbose, System.out);
     }};
 
     static {
@@ -43,6 +45,9 @@ public class Log {
 
     public static void v(String msg) {
         log(Type.Verbose, msg);
+    }
+    public static void vv(String msg) {
+        log(Type.VeryVerbose, msg);
     }
 
     public static void d(String msg) {
@@ -88,7 +93,7 @@ public class Log {
     }
 
     public enum Type {
-        Error, Warning, Info, Debug, Verbose;
+        Error, Warning, Info, Debug, Verbose, VeryVerbose;
         private final int bitMask = 1 << this.ordinal();
 
         private static int bitSetOf(Type... types) {

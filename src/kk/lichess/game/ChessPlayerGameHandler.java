@@ -6,7 +6,7 @@ import kk.lichess.Side;
 
 import java.util.List;
 
-public class Player implements GameHandler {
+public class ChessPlayerGameHandler implements GameHandler {
 
     private static final String STARTING_POSITION_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     private final ChessPlayer chessPlayer;
@@ -16,7 +16,7 @@ public class Player implements GameHandler {
     private int moveCount = 0;
     private boolean acceptDraw;
 
-    public Player(ChessPlayer chessPlayer, String gameId) {
+    public ChessPlayerGameHandler(ChessPlayer chessPlayer, String gameId) {
         this.chessPlayer = chessPlayer;
         this.gameId = gameId;
     }
@@ -37,6 +37,13 @@ public class Player implements GameHandler {
 
     @Override
     public void handleGameState(List<String> moves, GameMoveInterface gameInterface) {
+        Log.vv("game " + gameId + " moves: " + moves);
+
+        if (moves.size() < moveCount) {
+            Log.d("game " + gameId + " ignoring stale state: " + moves);
+            return;
+        }
+
         for (int i = moveCount; i < moves.size(); i++)
             chessPlayer.applyMove(moves.get(i));
 
