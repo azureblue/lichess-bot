@@ -17,7 +17,7 @@ public class LichessStream {
     private final InputStreamSupplier stream;
     private final BiConsumer<LichessStream, StreamResult> whenComplete;
     private final JsonHandler handler;
-    private JsonStreamReader jsonStreamReader;
+    private NDJsonStreamReader jsonReader;
     private Thread streamThread;
     private volatile boolean stopped = false;
     private volatile boolean ended = false;
@@ -38,11 +38,11 @@ public class LichessStream {
 
     public synchronized void start() throws IOException {
         Log.d(this.getClass().getSimpleName(), "start()");
-        jsonStreamReader = new JsonStreamReader(stream.openStream());
+        jsonReader = new NDJsonStreamReader(stream.openStream());
         streamThread = new Thread(() -> {
             try {
                 while (true) {
-                    String json = jsonStreamReader.readJson();
+                    String json = jsonReader.readJson();
                     if (json == null) {
                         Log.i("stream closed by remote host");
                         whenComplete.accept(this, new StreamResult(StreamResultStatus.EndOfStream, null));
@@ -73,7 +73,7 @@ public class LichessStream {
         Log.d(this.getClass().getSimpleName(), "stop()");
         stopped = true;
         try {
-            jsonStreamReader.close();
+            jsonReader.close();
         } catch (IOException e) {
             //what can you do...
             Log.w("stream close error: " + e.toString());
