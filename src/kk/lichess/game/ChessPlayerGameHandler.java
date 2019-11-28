@@ -36,7 +36,7 @@ public class ChessPlayerGameHandler implements GameHandler {
     }
 
     @Override
-    public void handleGameState(List<String> moves, GameMoveInterface gameInterface) {
+    public void handleGameState(List<String> moves, int timeLeft, GameMoveInterface gameInterface) {
         Log.vv("game " + gameId + " moves: " + moves);
 
         if (moves.size() < moveCount) {
@@ -51,7 +51,7 @@ public class ChessPlayerGameHandler implements GameHandler {
 
         if (isMyMove()) {
             Log.v("game " + gameId + ": " + "my turn");
-            String move = chessPlayer.makeMove(0);
+            String move = chessPlayer.makeMove(timeLeft);
             if (move == null) {
                 Log.e("makeMove returned null");
                 throw new IllegalStateException("makeMove returned null");

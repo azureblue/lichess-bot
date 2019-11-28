@@ -137,7 +137,8 @@ public class LichessGames {
 
             @Override
             public synchronized void handleGameState(GameState gameState) {
-                gameHandler.handleGameState(movesFromGameState(gameState), moveInterface);
+                int timeLeft = mySide.isWhite() ? gameState.getWtime() : gameState.getBtime();
+                gameHandler.handleGameState(movesFromGameState(gameState), timeLeft, moveInterface);
             }
 
             @Override

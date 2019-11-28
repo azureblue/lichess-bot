@@ -9,5 +9,5 @@ public interface GameHandler {
 
     void handleDrawOffer();
 
-    void handleGameState(List<String> moves, GameMoveInterface gameInterface);
+    void handleGameState(List<String> moves, int timeLeft, GameMoveInterface gameInterface);
 }

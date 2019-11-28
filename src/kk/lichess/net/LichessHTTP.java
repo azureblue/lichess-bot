@@ -26,6 +26,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public class LichessHTTP {
+    public static final int TIMEOUT = 5000;
     private final String authToken;
     private final ObjectMapper mapper = new JsonMapper();
 
@@ -36,6 +37,7 @@ public class LichessHTTP {
     public LichessResponse get(String path) throws LichessHTTPException {
         try {
             HttpResponse<String> response = Unirest.get(path)
+                    .socketTimeout(TIMEOUT)
                     .header("Authorization", authToken)
                     .asString();
             return new LichessResponse(response.getStatus(), response.getBody());
@@ -47,6 +49,7 @@ public class LichessHTTP {
     public LichessResponse postChatMessage(String gameId, Room room, String message) {
         HttpResponse<String> response = Unirest.post("https://lichess.org/api/bot/game/{gameId}/chat")
                 .routeParam("gameId", gameId)
+                .socketTimeout(TIMEOUT)
                 .header("Authorization", authToken)
                 .field("room", room.value)
                 .field("text", message)
@@ -59,7 +62,7 @@ public class LichessHTTP {
             HttpResponse<String> response = Unirest.post("https://lichess.org/api/bot/game/{gameId}/move/{move}")
                     .routeParam("gameId", gameId)
                     .routeParam("move", move)
-                    .socketTimeout(2000)
+                    .socketTimeout(TIMEOUT)
                     .queryString(acceptDraw ? Map.of("offeringDraw", true) : Map.of())
                     .header("Authorization", authToken)
                     .asString();
@@ -85,7 +88,7 @@ public class LichessHTTP {
     public LichessResponse post(String path) throws LichessHTTPException {
         try {
             HttpRequestWithBody postRequest = Unirest.post(path)
-                    .socketTimeout(5000)
+                    .socketTimeout(TIMEOUT)
                     .header("Authorization", authToken);
 
             HttpResponse<String> response = postRequest.asString();
@@ -98,6 +101,7 @@ public class LichessHTTP {
     private InputStream openStream(String url) throws IOException {
         HttpURLConnection urlConnection =
                 (HttpURLConnection) new URL(url).openConnection();
+        urlConnection.setConnectTimeout(TIMEOUT);
         urlConnection.setRequestMethod("GET");
         urlConnection.setRequestProperty("Authorization", authToken);
         return urlConnection.getInputStream();

@@ -24,10 +24,8 @@ class NDJsonStreamReader {
             if (line == null)
                 return null;
 
-            if (line.trim().equals("")) {
-                System.out.println("empty line");
+            if (line.trim().equals(""))
                 continue;
-            }
 
             return line.trim();
         }

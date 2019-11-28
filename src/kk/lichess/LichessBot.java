@@ -109,7 +109,7 @@ public class LichessBot {
                         eventStream.stop();
                         break;
                     }
-                    Thread.sleep(2000);
+                    Thread.sleep(5000);
                 }
             } catch (InterruptedException e) {
                 Log.d("lichess thread interrupted");
