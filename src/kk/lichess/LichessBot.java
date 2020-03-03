@@ -8,7 +8,9 @@ import kk.lichess.net.LichessStream;
 import kk.lichess.net.pojo.Challenge;
 
 import java.io.IOException;
+import java.lang.invoke.VarHandle;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -21,6 +23,8 @@ public class LichessBot {
     private final LichessHTTP lichessHTTP;
     private LichessGames lichessGames;
     private LichessStream eventStream;
+    private AtomicBoolean run = new AtomicBoolean(true);
+    private boolean started = false;
 
     public LichessBot(String botId, String authToken, Supplier<ChessPlayer> chessPlayerSupplier, Predicate<GameRequest> acceptGamePredicate) {
         this.botId = botId;
@@ -59,6 +63,10 @@ public class LichessBot {
     }
 
     public void start() {
+        if (started)
+            throw new IllegalStateException("lichess bot instance can by started only once");
+
+        started = true;
         new Thread(() -> {
             init();
 
@@ -94,7 +102,7 @@ public class LichessBot {
             };
 
             try {
-                while (true) {
+                while (run.get()) {
                     eventStream = lichessHTTP.eventStream(
                             (stre, result) -> Log.i("event stream ended: " + result.getResultStatus()),
                             challengeHandler, gameStartHandler);
@@ -109,7 +117,8 @@ public class LichessBot {
                         eventStream.stop();
                         break;
                     }
-                    Thread.sleep(5000);
+                    if (run.get())
+                        Thread.sleep(5000);
                 }
             } catch (InterruptedException e) {
                 Log.d("lichess thread interrupted");
@@ -118,7 +127,16 @@ public class LichessBot {
         }).start();
     }
 
-    public void stopAll() {
+    public void restartEventStream() {
+        eventStream.stop();
+    }
+
+    public void stop() {
+        run.set(false);
+        eventStream.stop();
+    }
+
+    public void stopGames() {
         lichessGames.stopAll();
     }
 

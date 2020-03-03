@@ -9,15 +9,24 @@ public class CatFact {
 
     public Optional<String> catFact() {
         try {
-            String catFact = Unirest
-                    .get("https://catfact.ninja/fact?max_length=100")
-                    .asJson().getBody().getObject().getString("fact");
+            String catFact = null;
 
+            catFact = getFact();
+            if (catFact.contains("\\\\"))
+                catFact = getFact();
+            if (catFact.contains("\\\\"))
+                catFact = getFact();
 
             return Optional.ofNullable(catFact);
         } catch (Exception e) {
             Log.e("no cat fact :(", e);
             return Optional.empty();
         }
+    }
+
+    private String getFact() {
+        return Unirest
+                .get("https://catfact.ninja/fact?max_length=100")
+                .asJson().getBody().getObject().getString("fact");
     }
 }

@@ -102,6 +102,7 @@ public class LichessHTTP {
         HttpURLConnection urlConnection =
                 (HttpURLConnection) new URL(url).openConnection();
         urlConnection.setConnectTimeout(TIMEOUT);
+        urlConnection.setReadTimeout(2000);
         urlConnection.setRequestMethod("GET");
         urlConnection.setRequestProperty("Authorization", authToken);
         return urlConnection.getInputStream();
@@ -118,7 +119,7 @@ public class LichessHTTP {
     }
 
     private LichessStream stream(String url, BiConsumer<LichessStream, LichessStream.StreamResult> whenComplete, LichessStream.JsonHandler handler) {
-        return new LichessStream(() -> openStream(url), whenComplete, handler);
+        return new LichessStream(() -> new NDJsonStream(openStream(url)), whenComplete, handler);
     }
 
     public Set<String> gamesInProgress() {

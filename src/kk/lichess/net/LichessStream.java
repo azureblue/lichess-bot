@@ -3,26 +3,20 @@ package kk.lichess.net;
 import kk.lichess.Log;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.function.BiConsumer;
 
 import static java.util.concurrent.CompletableFuture.runAsync;
 
 public class LichessStream {
 
-    public interface InputStreamSupplier {
-        InputStream openStream() throws IOException;
-    }
-
-    private final InputStreamSupplier stream;
+    private final JsonStreamSupplier stream;
     private final BiConsumer<LichessStream, StreamResult> whenComplete;
     private final JsonHandler handler;
-    private NDJsonStreamReader jsonReader;
+    private NDJsonStream jsonReader;
     private Thread streamThread;
-    private volatile boolean stopped = false;
     private volatile boolean ended = false;
 
-    LichessStream(InputStreamSupplier stream, BiConsumer<LichessStream, StreamResult> whenComplete, JsonHandler handler) {
+    LichessStream(JsonStreamSupplier stream, BiConsumer<LichessStream, StreamResult> whenComplete, JsonHandler handler) {
         this.stream = stream;
         this.whenComplete = whenComplete;
         this.handler = handler;
@@ -38,7 +32,7 @@ public class LichessStream {
 
     public synchronized void start() throws IOException {
         Log.d(this.getClass().getSimpleName(), "start()");
-        jsonReader = new NDJsonStreamReader(stream.openStream());
+        jsonReader = stream.openStream();
         streamThread = new Thread(() -> {
             try {
                 while (true) {
@@ -57,10 +51,10 @@ public class LichessStream {
                                 return null;
                             });
                 }
+            } catch (NDJsonStream.StreamStopped e) {
+                whenComplete.accept(this, new StreamResult(StreamResultStatus.Stopped, null));
             } catch (Exception e) {
-                if (stopped)
-                    whenComplete.accept(this, new StreamResult(StreamResultStatus.Stopped, null));
-                whenComplete.accept(this, new StreamResult(StreamResultStatus.Error, e));
+                    whenComplete.accept(this, new StreamResult(StreamResultStatus.Error, e));
             } finally {
                 ended = true;
             }
@@ -71,17 +65,15 @@ public class LichessStream {
 
     public void stop() {
         Log.d(this.getClass().getSimpleName(), "stop()");
-        stopped = true;
-        try {
-            jsonReader.close();
-        } catch (IOException e) {
-            //what can you do...
-            Log.w("stream close error: " + e.toString());
-        }
+        jsonReader.stop();
     }
 
     public enum StreamResultStatus {
         EndOfStream, Stopped, Error
+    }
+
+    public interface JsonStreamSupplier {
+        NDJsonStream openStream() throws IOException;
     }
 
 

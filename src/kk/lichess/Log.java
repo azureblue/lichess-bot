@@ -67,9 +67,9 @@ public class Log {
     }
 
     public static void e(String msg, Throwable t) {
-        t.printStackTrace();
         log(Type.Error, msg);
-        log(Type.Error, t::printStackTrace);
+        if (t != null)
+            log(Type.Error, t::printStackTrace);
     }
 
     public static void log(Type type, Consumer<PrintStream> streamConsumer) {
